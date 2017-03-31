@@ -332,7 +332,7 @@ void arkanoid_menu (void) {
     unsigned int idx;
 
     for (idx = 0; idx < N; idx++) {
-      box[idx].xs = 40 + (idx % 40); //{ 60 + (idx % 10), 10 + idx / 10, 0, 0 };
+      box[idx].xs = 40 + (idx % 40);
       box[idx].ys = 10 + idx / 40;
       box[idx].xe = box[idx].ye = 0;
       mask[idx] = '1';
