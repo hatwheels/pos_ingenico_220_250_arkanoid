@@ -10,13 +10,11 @@
 static const long difficulty[6] = {100, 90, 80, 70, 60, 50};
 static size_t user_diff = 2;
 
-static long arkanoid_get_difficulty (void)
-{
+static long arkanoid_get_difficulty (void) {
   return difficulty[user_diff];
 }
 
-static void arkanoid_set_difficulty (size_t new_diff)
-{
+static void arkanoid_set_difficulty (size_t new_diff) {
   user_diff = new_diff;
 }
 
