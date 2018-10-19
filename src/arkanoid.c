@@ -2,7 +2,7 @@
  * arkanoid.c
  *
  *  Created on: Feb 24, 2017
- *      Author: kmarkostamos
+ *      Author: hathweels
  */
 
 #include "inc/arkanoid.h"
