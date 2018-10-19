@@ -2,7 +2,7 @@
  * arkanoid.h
  *
  *  Created on: Feb 24, 2017
- *      Author: kmarkostamos
+ *      Author: hatwheels
  */
 
 #if !defined(__ARKANOID_H__)
