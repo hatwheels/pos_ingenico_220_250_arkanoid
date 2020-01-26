@@ -2,6 +2,7 @@
  * gamedev.h
  *
  *  Created on: Mar 10, 2017
+ *  Edited  on: Nov 15, 2019
  *      Author: hatwheels
  */
 
@@ -18,11 +19,9 @@
 #include <libgr.h>
 #include "os.h"
 
-#include "inc/devices.h"
-#include "inc/udisplay.h"
-#include "inc/menu.h"
+#include "inc/utility.h"
 
-/// Pixel coordinates min/max range
+// Pixel coordinates min/max range
 #define Xmin 0
 #define Xmax 127
 #define Ymin 0

@@ -2,13 +2,21 @@
  * arkanoid.c
  *
  *  Created on: Feb 24, 2017
+ *  Edited  on: Nov 15, 2019
  *      Author: hathweels
  */
 
 #include "inc/arkanoid.h"
 
-static const long difficulty[6] = {100, 90, 80, 70, 60, 50};
+extern FILE *hKeyboard;
+
+static const long difficulty[6] = { 100, 90, 80, 70, 60, 50 };
 static size_t user_diff = 2;
+
+static const char *game_end[] = { "RESTART", "QUIT" };
+static const char *game_pause[] = { "CONTINUE", "DIFFICULTY", "RESTART", "QUIT" };
+static const char *game_difficulty[] = { "VERY EASY", "EASY", "NORMAL", "HARD", "VERY HARD", "INSANE" };
+
 
 static long arkanoid_get_difficulty (void) {
   return difficulty[user_diff];
@@ -27,18 +35,18 @@ static int arkanoid_bounce (blob* object, blob* ball) {
             (ball->xs == i && ball->ye == j) ||
             (ball->xe == i && ball->ys == j) ||
             (ball->xe == i && ball->ye == j))
-          return 1; ///bounce
+          return 1; // bounce
       }
   }
   return 0;
 }
 
-static int arkanoid_ball (timer* tm, blob* player, blob* wall, blob* ball, blob* box, char* mask, int* directionX, int* directionY) {
+static int arkanoid_ball (blob* player, blob* wall, blob* ball, blob* box, char* mask, int* directionX, int* directionY) {
   int state = 0;
   unsigned int k;
 
   /// check timer has elapsed
-  if (timer_haselapsed (tm)) {
+  if (timer_get (0) <= 0) {
     blob ball_old;
 
     ball_old.xs = ball->xs;
@@ -46,7 +54,7 @@ static int arkanoid_ball (timer* tm, blob* player, blob* wall, blob* ball, blob*
     ball_old.xe = ball->xe;
     ball_old.ye = ball->ye;
 
-    /// Compute new Ball Coordinates in current Frame
+    // Compute new Ball Coordinates in current Frame
     ball->xs += *directionX;
     ball->xe += *directionX;
     ball->ys += *directionY;
@@ -65,8 +73,8 @@ static int arkanoid_ball (timer* tm, blob* player, blob* wall, blob* ball, blob*
       ball->ye = 2;
     }
 
-    /// Check Collision of Ball with other Objects
-    if (arkanoid_bounce(player, ball)) {
+    // Check Collision of Ball with other Objects
+    if (arkanoid_bounce (player, ball)) {
       int diff = (player->xe - player->xs) >> 3;
       if ((ball->xs < player->xs + diff) || (ball->xs > player->xe - diff)) {
           *directionY = -3;
@@ -83,17 +91,17 @@ static int arkanoid_ball (timer* tm, blob* player, blob* wall, blob* ball, blob*
       ball->xs -= *directionX;
       ball->xe -= *directionX;
     }
-    /// Ball below level of player -> Game Over
+    // Ball below level of player -> Game Over
     else if (ball->ys > player->ye)
       state = 1;
-    /// Other situations
+    // Other situations
     else {
-      int broke = 0; //  Front: 1, Back: 2, Left: 3, Right: 4
+      int broke = 0; // Front: 1, Back: 2, Left: 3, Right: 4
       unsigned int empty_px = 0;
 
-      /// Check Collision of ball with walls
+      // Check Collision of ball with walls
       for (k = 0; k < 3; k++) {
-        if (arkanoid_bounce(&wall[k], ball)) {
+        if (arkanoid_bounce (&wall[k], ball)) {
           if (wall[k].xs == wall[k].xe) {
             ball->ys -= *directionY;
             ball->ye -= *directionY;
@@ -129,7 +137,7 @@ static int arkanoid_ball (timer* tm, blob* player, blob* wall, blob* ball, blob*
           break;
         }
       }
-      /// Check Collision with Box
+      // Check Collision with Box
       for (k = 0; k < N; k++) {
         int j;
         int l;
@@ -143,8 +151,8 @@ static int arkanoid_ball (timer* tm, blob* player, blob* wall, blob* ball, blob*
           for (j = ball->xs; j <= ball->xe; j++) {
             for (l = ball->ys; l <= ball->ye; l++) {
               if (j == box[k].xs && l == box[k].ys) {
-                /// Ball Front Side: (Xs<->Xe, Ys)
-                /// Ball Back Side: (Xs<->Xe, Ye)
+                // Ball Front Side: (Xs<->Xe, Ys)
+                // Ball Back Side: (Xs<->Xe, Ye)
                 _DrawLine (box[k].xs, box[k].ys, box[k].xs, box[k].ys, _OFF_);
                 mask[k] = '0';
                 broke = 1;
@@ -157,8 +165,8 @@ static int arkanoid_ball (timer* tm, blob* player, blob* wall, blob* ball, blob*
           for (j = ball->ys; j <= ball->ye; j++) {
             for (l = ball->xs; l <= ball->xe; l++) {
               if (j == box[k].ys && l == box[k].xs) {
-                /// Ball Left Side: (Xs, Ys<->Ye)
-                /// Ball Right Side: (Xe, Ys<->Ye)
+                // Ball Left Side: (Xs, Ys<->Ye)
+                // Ball Right Side: (Xe, Ys<->Ye)
                 _DrawLine (box[k].xs, box[k].ys, box[k].xs, box[k].ys, _OFF_);
                 mask[k] = '0';
                 broke = -1;
@@ -169,7 +177,7 @@ static int arkanoid_ball (timer* tm, blob* player, blob* wall, blob* ball, blob*
         }
       }
 
-      /// Broke Box with Front/Back Side
+      // Broke Box with Front/Back Side
       if (broke == -1) {
         ball->ys -= *directionY;
         ball->ye -= *directionY;
@@ -186,7 +194,7 @@ static int arkanoid_ball (timer* tm, blob* player, blob* wall, blob* ball, blob*
         ball->xs += *directionX;
         ball->xe += *directionX;
       }
-      ///Broke Box with Left/Right side
+      // Broke Box with Left/Right side
       else if (broke == 1) {
         ball->xs -= *directionX;
         ball->xe -= *directionX;
@@ -204,72 +212,79 @@ static int arkanoid_ball (timer* tm, blob* player, blob* wall, blob* ball, blob*
         ball->ye += *directionY;
       }
 
-      /// Whole Box was broken
+      // Whole Box was broken
       if (empty_px == N)
         state = -1;
     }
     _DrawRect (ball_old.xs, ball_old.ys, ball_old.xe, ball_old.ye, 0, _OFF_, _OFF_);
     DrawRect (ball->xs, ball->ys, ball->xe, ball->ye, 1, _ON_, _ON_);
-    /// reset Frame timer
-    timer_start (tm, arkanoid_get_difficulty ());
+    // Reset Frame timer
+    timer_stop (0);
+    timer_start (0, arkanoid_get_difficulty ());
   }
 
   return state;
 }
 
-static int arkanoid_loop (timer* tm, blob* player, blob* wall, blob* ball, blob* box, char* mask, int* directionX, int* directionY) {
+static int arkanoid_loop (blob* player, blob* wall, blob* ball, blob* box, char* mask, int* directionX, int* directionY) {
   for (;;) {
     unsigned int idx;
-    int r = arkanoid_ball (tm, player, wall, ball, box, mask, directionX, directionY);
+    int r = arkanoid_ball (player, wall, ball, box, mask, directionX, directionY);
 
-    /// Game Over OR Victory
+    // Game Over OR Victory
     if (r)
     {
-      char menu[2][DISPLAY_COL + 1] = {"RESTART", "QUIT"};
-      char title[DISPLAY_COL + 1] = {0}; ;
+      char title[17] = {0};
 
       strcpy (title, (r == 1) ? "GAME OVER!" : "YOU WON");
-      display_publish (0, title, 0, 0, DP_INFO);
+      display_medium (2, 5, title);
       ttestall (0, 100);
 
-      return (execute_menu (title, (char *) menu, 2, 1, MF_NUMBERED | MF_MAIN |  MF_NO_TIMEOUT) % 2);
+      switch (show_menu (title, 1, 0, NUMBER_OF_ITEMS(game_end), game_end)) {
+        case 0: // Restart
+          return 1;
+        case 1: // Quit
+        default:
+          return 0;
+      }
     }
 
-    /// Key pressed
-    if (keyboard_hit ()) {
-      switch (keyboard_getchar ()) {
-        case CH_CANCEL: /// Cancel
-          display_clear (0);
+    // Key pressed
+    if ( ttestall (KEYBOARD, 1) & KEYBOARD ) {
+      reset_buf (hKeyboard, _receive_id);
+      char pressed_key = getchar ();
+
+      switch (pressed_key) {
+        // Cancel
+        case T_ANN:
+          _clrscr();
           return 0;
 
-        ///Pause
-        case CH_BACKSP: {
-          char menu[4][DISPLAY_COL + 1] = {"CONTINUE", "DIFFICULTY", "RESTART", "QUIT"};
-
-          display_publish (0, "PAUSE", 0, 0, DP_INFO);
+        // Pause
+        case T_CORR: {
+          display_medium (2, 5, "PAUSE");
           ttestall (0, 100);
 
-          switch (execute_menu ("PAUSE", (char *) menu, 4, 1, MF_NUMBERED | MF_MAIN |  MF_NO_TIMEOUT)) {
-            case 1: ///Continue
+          switch (show_menu ("PAUSE", 1, 0, NUMBER_OF_ITEMS(game_pause), game_pause)) {
+            case 0: // Continue
               break;
-            case 2: ///Difficulty
-              {
-                char menu[6][DISPLAY_COL + 1] = {"VERY EASY", "EASY", "NORMAL", "HARD", "VERY HARD", "INSANE"};
-                int ret = execute_menu ("DIFFICULTY", (char *) menu, 6, 1, MF_NUMBERED | MF_MAIN |  MF_NO_TIMEOUT);
+            case 1: { // Difficulty
+              int ret = show_menu ("DIFFICULTY", 1, 0, NUMBER_OF_ITEMS(game_difficulty), game_difficulty);
 
-                if (ret > 0 && ret < 7)
-                  arkanoid_set_difficulty (ret - 1);
-              }
+              if (ret > -1 && ret < 6)
+                arkanoid_set_difficulty (ret);
+
               break;
+            }
 
-            case 3: ///Restart
+            case 2: // Restart
               return 1;
 
-            case 4: ///Exit
+            case 3: // Exit
               return 0;
           }
 
-          display_clear (0);
+          _clrscr();
           DrawLine (wall[0].xs, wall[0].ys, wall[0].xe, wall[0].ye, _ON_);
           DrawLine (wall[1].xs, wall[1].ys, wall[1].xe, wall[1].ye, _ON_);
           DrawLine (wall[2].xs, wall[2].ys, wall[2].xe, wall[2].ye, _ON_);
@@ -282,7 +297,7 @@ static int arkanoid_loop (timer* tm, blob* player, blob* wall, blob* ball, blob*
           break;
         }
 
-        case CH_4: ///Left
+        case T_NUM4: // Left
           if (player->xs - STEP <= Xmin)
               break;
 
@@ -294,7 +309,7 @@ static int arkanoid_loop (timer* tm, blob* player, blob* wall, blob* ball, blob*
 
           break;
 
-        case CH_6: ///Right
+        case T_NUM6: // Right
           if (player->xe + STEP >= Xmax)
               break;
 
@@ -315,12 +330,11 @@ static int arkanoid_loop (timer* tm, blob* player, blob* wall, blob* ball, blob*
 
 void arkanoid_menu (void) {
   for (;;) {
-    timer tm;
     blob player = { 57, 62, 78, 63 };
     blob wall[3] = {
         { Xmin, Ymin, Xmax, Ymin }, // Wall, Up
         { Xmin, Ymin, Xmin, Ymax }, // Left Wall
-        { Xmax, Ymin, Xmax, Ymax } // Right Wall
+        { Xmax, Ymin, Xmax, Ymax }  // Right Wall
     };
     blob ball = { 32, 14, 34, 16 };
     int directionX = 2, directionY = 2;
@@ -335,7 +349,7 @@ void arkanoid_menu (void) {
       mask[idx] = '1';
     }
 
-    display_clear (0);
+    _clrscr();
     _DrawLine (wall[0].xs, wall[0].ys, wall[0].xe, wall[0].ye, _ON_);
     _DrawLine (wall[1].xs, wall[1].ys, wall[1].xe, wall[1].ye, _ON_);
     _DrawLine (wall[2].xs, wall[2].ys, wall[2].xe, wall[2].ye, _ON_);
@@ -345,10 +359,12 @@ void arkanoid_menu (void) {
       if (mask[idx] == '1')
         _DrawLine (box[idx].xs, box[idx].ys, box[idx].xs, box[idx].ys, _ON_);
 
-    timer_start (&tm, arkanoid_get_difficulty ());
+    timer_start (0, arkanoid_get_difficulty ());
 
-    if (arkanoid_loop (&tm, &player, wall, &ball, box, mask, &directionX, &directionY) == 0)
+    if (arkanoid_loop (&player, wall, &ball, box, mask, &directionX, &directionY) == 0)
       break;
   }
+
+  timer_stop (0);
   arkanoid_set_difficulty (2);
 }
